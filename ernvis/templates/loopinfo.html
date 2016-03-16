@@ -1,0 +1,20 @@
+<h1>{{ name |looptype | capitalize}}: {{name}}</h1>
+{% if stats %}
+  <table>
+  {% if stats.ang_type and stats.ang_type=="x" %}
+    <tr><td>Fully determined by other multiloop parts</td></tr>
+  {%else%}
+    {% if stats.pdb_name %}<tr><td>Corresponding PDB entry:</td><td>{{stats.pdb_name}}</td></tr>{%endif%}
+    {% if stats.bp_length %}<tr><td>{% if stats.r %}Nucleotides:{%else%}Basepairs:{%endif%}</td><td>{{stats.bp_length}}</td></tr>{%endif%}
+    {% if stats.dim1 or stats.dim1 == 0 %}<tr><td>{% if stats.dim2==1000 %}Nucleotides:{%else%}Nucleotides left:{%endif%}</td><td>{{stats.dim1}}</td></tr>{%endif%}
+    {% if stats.dim2 and stats.dim2 != 1000 %}<tr><td>Nucleotides right:</td><td>{{stats.dim2}}</td></tr>{%endif%}
+    {% if stats.phys_length %}<tr><td>Physical length:</td><td>{{stats.phys_length | round(3) }}</td></tr>{%endif%}
+    {% if stats.twist_angle or stats.twist_angle == 0 %}<tr><td>Twist Angle:</td><td>{{stats.twist_angle | round(3)}}</td></tr>{%endif%}
+    {% if stats.seqs %}<tr><td>Sequence{% if stats.seqs|length>1 %}s{%endif%} (incl. flanking bases):</td><td>{% for s in stats.seqs %}{{s}}{% if not loop.last %}, {% endif %}{%endfor%}</td></tr>{%endif%}
+  {%endif%}
+  </table>
+
+{% if stats.ang_type and stats.ang_type!="x" %}
+  <button type="button" id="changeElementButton">Change Element</button> 
+{% endif %}
+{% endif %} 
