@@ -15,7 +15,7 @@ if __name__=="__main__":
     sm.sample_stats()
     print ("BUILDSTRUCTURE: traverse and build ")
     sm.traverse_and_build()
-    print("Writing File")
+    print("BUILDSTRUCTURE: Writing File")
 
     centroid0 = ftuv.get_vector_centroid(ftug.bg_virtual_residues(sm.bg))
     for k in cg.coords.keys():

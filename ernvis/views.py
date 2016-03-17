@@ -58,10 +58,7 @@ def upload_structure():
     fasta=request.form["fasta"]
     cg = ftmc.CoarseGrainRNA()
     cg.from_fasta(fasta)
-    while True:
-        filename=str(uuid.uuid4())
-        if not os.path.exists("user_files/"+filename):
-            break
+    filename=get_new_filename()
     cg.to_cg_file("user_files/"+filename)        
     subprocess.Popen(["ernvis/buildstructure.py", "user_files/"+filename])
     print("Subprocess started")
@@ -85,7 +82,38 @@ def showStructure(filename):
 
 
 
+@app.route('/structures/<string:filename>/loop/<string:loopname>/', methods=["POST"])
+def changeLoop(filename, loopname):
+    posted=request.get_json(force=True)
+    if posted["action"]=="change" and posted["method"]=="random":
+        cg=ftmc.CoarseGrainRNA("user_files/"+filename)
+        sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+        sm.load_sampled_elems()
+        if loopname not in cg.coords:
+            abort(404)
+        original_cg=copy.deepcopy(sm.bg)
 
+        change_elem(sm, loopname)
+        cg=sm.bg
+
+        centroid0 = ftuv.get_vector_centroid(ftug.bg_virtual_residues(original_cg))
+        centroid1 = ftuv.get_vector_centroid(ftug.bg_virtual_residues(cg))
+        crds0 = ftuv.center_on_centroid(ftug.bg_virtual_residues(original_cg))
+        crds1 = ftuv.center_on_centroid(ftug.bg_virtual_residues(cg))
+        rot_mat = ftur.optimal_superposition(crds0, crds1)
+        for k in cg.coords.keys():
+            cg.coords[k] = (np.dot(rot_mat, cg.coords[k][0] - centroid1),
+                            np.dot(rot_mat, cg.coords[k][1] - centroid1))
+            if k[0] == 's':
+                cg.twists[k] = (np.dot(rot_mat, cg.twists[k][0]),
+                                np.dot(rot_mat, cg.twists[k][1]))
+
+        filename=get_new_filename()
+        cg.to_cg_file("user_files/"+filename)
+
+        return jsonify({"url": url_for("structure_main", filename=filename)})
+    else:
+        abort(403)
 
 
 @app.route('/structures/<string:filename>/loop/<string:loopname>/stats.html')
@@ -147,36 +175,7 @@ def showvirtualAtoms(filename):
             }
             forJson["virtual_atoms"].append(atomInfo)
     return jsonify(forJson)
-# ======= VIEWS ALLOWING POST METHOD ==========
 
-
-@app.route('/structures/<string:filename>/loop/<string:loopname>/get_next')
-def changeLoop(filename, loopname):
-    cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
-    sm.load_sampled_elems()
-    if loopname not in cg.coords:
-        abort(404)
-    original_cg=copy.deepcopy(sm.bg)
-
-    change_elem(sm, loopname)
-    cg=sm.bg
-
-    centroid0 = ftuv.get_vector_centroid(ftug.bg_virtual_residues(original_cg))
-    centroid1 = ftuv.get_vector_centroid(ftug.bg_virtual_residues(cg))
-    crds0 = ftuv.center_on_centroid(ftug.bg_virtual_residues(original_cg))
-    crds1 = ftuv.center_on_centroid(ftug.bg_virtual_residues(cg))
-    rot_mat = ftur.optimal_superposition(crds0, crds1)
-    for k in cg.coords.keys():
-        cg.coords[k] = (np.dot(rot_mat, cg.coords[k][0] - centroid1),
-                        np.dot(rot_mat, cg.coords[k][1] - centroid1))
-        if k[0] == 's':
-            cg.twists[k] = (np.dot(rot_mat, cg.twists[k][0]),
-                            np.dot(rot_mat, cg.twists[k][1]))
-
-    cg.to_cg_file("user_files/"+filename)
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
-    return getStructureJson(sm)
 
 # ======= HELPER FUNCTIONS ====================
 def cylinderToThree(line, name):
@@ -208,5 +207,9 @@ def getStructureJson(sm):
     return jsonify(forJson)
 
     
-
+def get_new_filename():
+    while True:
+        filename=str(uuid.uuid4())
+        if not os.path.exists("user_files/"+filename):
+            return filename
 

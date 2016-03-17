@@ -8,6 +8,10 @@ var rnaLoops=[];
 var virtualAtoms=[];
 var selectedLoop = null;
 
+window.onpopstate = function(){
+  location.reload();
+}
+
 function showElem(data, bad_bulges){
     var typ=data["type"];
     var length=data["length"];
@@ -188,7 +192,10 @@ function pickLoop(loop){
     $("#selectedLoop").load("loop/"+selectedLoop.name+"/stats.html", function(){
         $("#changeElementButton").click(
             function(){
-                loadRNA("loop/"+selectedLoop.name+"/get_next")
+                $.post("loop/"+selectedLoop.name+"/", JSON.stringify({"action":"change", "method":"random"}), function(data){
+                    window.history.pushState("","", data.url);
+                    loadRNA("3D")
+                },"json");
             }
         )
     });
