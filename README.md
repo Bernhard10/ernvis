@@ -9,6 +9,7 @@ Right now, you need a test.coord file in the same directory as runserver.py
 Dependencies
 ============
 
-Flask
-Forgi
-Ernwin
+* Flask
+* Forgi
+* Ernwin
+* Three.js
