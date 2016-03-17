@@ -1,3 +1,6 @@
+#user_files generated during testing of the app
+user_files/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

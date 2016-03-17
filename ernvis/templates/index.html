@@ -7,10 +7,11 @@
 		<title>Ernvis - RNA 3D ensemble explorer</title>
 	</head>
 	<body>
-		<script src="static/js/three.min.js"></script>
-		<script src="static/js/TrackballControls.js"></script>
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
-		<script src="static/js/RNAvis.js"></script>
-    <section id="selectedLoop"></section>
+    <form action="/structures"  method="post">
+        Please input sequence & structure.
+        <textarea rows="3" columns="800" name="fasta">
+        </textarea>
+        <input type="submit" value="Submit">
+    </form>
 	</body>
 </html>

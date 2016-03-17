@@ -1,0 +1,8 @@
+<h1>Structure Properties</h1>
+
+<table>
+    <tr><td>Radius of gyration:</td><td>{{cg.radius_of_gyration() | round(4) }}	&#8491;</td></tr>
+    <tr><td>Total length:</td><td>{{cg.total_length() | round(4) }}</td></tr>
+    {% if numclashes %}<tr><td>Clashes:</td><td>{{numclashes}} Atoms clash.</td></tr>{%endif%}
+    {% if clashbulges %}<tr><td>Stems clashing:</td><td>{{clashbulges}}</td></tr>{%endif%}
+</table>

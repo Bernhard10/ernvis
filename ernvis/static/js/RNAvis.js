@@ -5,20 +5,26 @@ var controls;
 var raycaster;
 var mouse;
 var rnaLoops=[];
+var virtualAtoms=[];
 var selectedLoop = null;
 
-function showElem(data){
-    typ=data["type"];
-    length=data["length"];
-    center=data["center"];
-    look_at=data["look_at"];
+function showElem(data, bad_bulges){
+    var typ=data["type"];
+    var length=data["length"];
+    var center=data["center"];
+    var look_at=data["look_at"];
+    var color;
     if (typ=="s"){
       r=3;
     }else{
       r=1;
     }
     if (typ=="s"){
-      color=0x00ff00;
+      if ($.inArray(data["name"], bad_bulges)>-1){
+          color=0x445500
+      }else{
+          color=0x00ff00;
+      }
     }else if (typ=="i"){
       color=0xffff00;
     }else if (typ=="m"){
@@ -30,6 +36,7 @@ function showElem(data){
     }
     var geometry = new THREE.CylinderGeometry( r, r , length );
     var material = new THREE.MeshLambertMaterial( { color: color } );
+
     geometry.applyMatrix( new THREE.Matrix4().makeRotationX( THREE.Math.degToRad( 90 ) ) );
     var stem = new THREE.Mesh( geometry, material );
     stem.position.x=center[0];
@@ -41,10 +48,33 @@ function showElem(data){
     return stem;
 }
 
+function showAtom(data){
+    var is_clashing=data["is_clashing"];
+    var center=data["center"];
+    var color;
+    if (is_clashing){
+          color=0xffaa00;
+    }else{
+          color=0xaaffaa;
+    }
+
+    var geometry = new THREE.SphereGeometry( 0.7 );
+    var material = new THREE.MeshLambertMaterial( { color: color } );
+    var atom = new THREE.Mesh( geometry, material );
+    atom.position.x=center[0];
+    atom.position.y=center[1];
+    atom.position.z=center[2];
+
+    atom.stemname=data["loop"];
+    atom.atomtype_name=data["atomname"]
+    return atom;
+}
+
+
 function init(){
   renderer.setSize( 500,500);
   renderer.setClearColor( 0xf0f0f0 );
-  document.body.appendChild( renderer.domElement );
+  $( renderer.domElement ).insertAfter("#canvasWrap h1");
 
   camera.position.z = 100;
   controls = new THREE.TrackballControls( camera, renderer.domElement );
@@ -73,11 +103,23 @@ function init(){
   renderer.domElement.addEventListener( 'click', selectLoop, false );
 
   // LOAD THE RNA
-  loadRNA("/structure/test.coord/3D");
+  loadRNA("3D");
 
 }
 
-function loadRNA(url){    
+function refreshCanvas(){
+    for( var i = scene.children.length - 1; i >= 0; i--) { 
+      object=scene.children[i];
+      if(object.type === "Mesh"){
+          scene.remove(object);
+      }
+    }
+    rnaLoops=[];
+    loadRNA("3D");
+}
+
+function loadRNA(url){
+  //Make previous RNA transparent, but keep in the scene until "Refresh" is clicked.
   for (var i=0; i<rnaLoops.length; i++){
     //scene.remove( rnaLoops[i] );
     hsl=rnaLoops[i].material.color.getHSL();
@@ -85,38 +127,85 @@ function loadRNA(url){
     rnaLoops[i].material.transparent=true;
     rnaLoops[i].material.opacity=rnaLoops[i].material.opacity*0.2;
   }
-  rnaLoops=[]
+  for (var i=0; i<virtualAtoms.length; i++){
+      scene.remove(virtualAtoms[i]);
+  }
+  virtualAtoms=[]
+  rnaLoops=[];
+  //Load RNA to scene.
   $.getJSON(url, "", function(data){
-    for (var i = 0; i < data["loops"].length; i++) {
-        var stem=showElem(data["loops"][i]);
-        scene.add(stem);
-        rnaLoops.push(stem);
-        camera.lookAt(stem);
-        if (selectedLoop && stem.name==selectedLoop.name){
-            console.log("picking")
-            pickLoop(stem);
+    if (data["status"]=="OK"){
+        $(".message").remove();
+        //Load RNA stats
+        $("#structureStats").load("stats");
+        loadVirtualAtoms();
+        for (var i = 0; i < data["loops"].length; i++) {
+            var stem=showElem(data["loops"][i], data["bad_bulges"]);
+            scene.add(stem);
+            rnaLoops.push(stem);
+            if (selectedLoop && stem.name==selectedLoop.name){
+                pickLoop(stem);
+            }
         }
+        render();
+    }else if (data["status"]=="NOT READY"){
+
+        $( '<div class="message">'+data["message"]+'</div>' ).insertAfter("#canvasWrap h1");
+        setTimeout(function(){loadRNA(url);}, 1000);
+        //TODO: periodical reload 
     }
-    render();
-  });
+  });  
   render();
 }
 
-function pickLoop(obje){
-    selectedLoop=obje;
-    selectedLoop.material.oldColor=selectedLoop.material.color.getHex();
-    selectedLoop.material.color.addScalar(-0.4);
-    selectedLoop.geometry.colorsNeedUpdate = true;
-    $("#selectedLoop").load("/structure/test.coord/loop/"+selectedLoop.name+"/stats.html", function(){
+function loadVirtualAtoms(){
+  //Load VirtualAtoms (This call might keep the server busy for some time)
+  if ($("#showVirtualAtoms").is(':checked')){
+    $.getJSON("virtualAtoms", "", function(data){
+        for (var i = 0; i < data["virtual_atoms"].length; i++) {
+            atom=showAtom(data["virtual_atoms"][i]);
+            scene.add(atom);
+            virtualAtoms.push(atom);
+        }
+        render();
+    });
+  }
+}
+function pickObject(object){
+    object.material.oldColor=object.material.color.getHex();
+    object.material.color.addScalar(-0.4);
+    object.geometry.colorsNeedUpdate = true;
+}
+function pickLoop(loop){
+    selectedLoop=loop;
+    pickObject(selectedLoop)
+    for (var i=0; i<virtualAtoms.length; i++){            
+        if (virtualAtoms[i].stemname==loop.name){
+
+            pickObject(virtualAtoms[i]);
+        }
+    }
+    $("#selectedLoop").load("loop/"+selectedLoop.name+"/stats.html", function(){
         $("#changeElementButton").click(
             function(){
-                loadRNA("/structure/test.coord/loop/"+selectedLoop.name+"/get_next")
+                loadRNA("loop/"+selectedLoop.name+"/get_next")
             }
         )
     });
     render();
 }
 
+function unpickLoop(loop){
+    unpickObject(loop);
+    for (var i=0; i<virtualAtoms.length; i++){
+        if (virtualAtoms[i].stemname==loop.name){
+            unpickObject(virtualAtoms[i]);
+        }
+    }
+}
+function unpickObject(object){
+  object.material.color.setHex(object.material.oldColor)
+}
 function render() {
 	renderer.render( scene, camera );
 }
@@ -136,7 +225,8 @@ function selectLoop( event ){
 
     if (selectedLoop){
       //restore color of prev. selected loop
-      selectedLoop.material.color.setHex(selectedLoop.material.oldColor)
+      unpickLoop(selectedLoop)
+
     }
     //set new selected Loop    
     pickLoop(intersects[0].object);

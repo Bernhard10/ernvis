@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8> 
+    <link rel="stylesheet" type="text/css" href="/static/ernvis.css">
+
+		<title>Ernvis - RNA 3D ensemble explorer</title>
+	</head>
+	<body>
+    <section id="canvasWrap">
+    <h1>3D structure</h1>
+    <div id="canvasControls">
+      <button type="button" id="refreshWindow" onclick="refreshCanvas()">Refresh</button><br/>
+      <input type="checkbox" id="showVirtualAtoms"/>Virtual Atoms<br/>
+    </div>
+    </section>
+    <section id="structureStats"></section>
+    <section id="selectedLoop"></section>
+	</body>		
+  <script src="/static/js/three.min.js"></script>
+  <script src="/static/js/TrackballControls.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+	<script src="/static/js/RNAvis.js"></script>
+</html>
