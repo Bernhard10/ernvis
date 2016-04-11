@@ -7,7 +7,7 @@ var mouse;
 var rnaLoops=[];
 var virtualAtoms=[];
 var selectedLoop = null;
-
+var container;
 window.onpopstate = function(){
   location.reload();
 }
@@ -141,7 +141,31 @@ function loadRNA(url){
     if (data["status"]=="OK"){
         $(".message").remove();
         //Load RNA stats
-        $("#structureStats").load("stats");
+        $("#structureStats").load("stats", function(){
+            $(".dotbracket_element").click(
+                function(){
+                    element=$(this).attr("element_name");
+                    pickLoopByName(element);
+                }
+            );
+        });
+        // Fornac
+        container = new fornac.FornaContainer("#rna_ss", {'applyForce': !$("#allowFornacEdit").is(':checked')});
+        var options = {'structure': data["dotbracket"],
+                        'sequence': data["sequence"]
+        };
+        container.addRNA(options.structure, options);
+        $("#allowFornacEdit").change(function() {
+            container.options.applyForce=!this.checked
+            container.animate=!this.checked
+            if (this.checked){
+              container.stopAnimation();
+            }else{
+              container.startAnimation();
+            }
+        });
+        //
+        $("#energyInfo").load("energy");
         loadVirtualAtoms();
         for (var i = 0; i < data["loops"].length; i++) {
             var stem=showElem(data["loops"][i], data["bad_bulges"]);
@@ -156,9 +180,8 @@ function loadRNA(url){
 
         $( '<div class="message">'+data["message"]+'</div>' ).insertAfter("#canvasWrap h1");
         setTimeout(function(){loadRNA(url);}, 1000);
-        //TODO: periodical reload 
     }
-  });  
+  }).error( function(){$("body").load("404");}) 
   render();
 }
 
@@ -199,10 +222,30 @@ function pickLoop(loop){
             }
         )
     });
+    $("."+selectedLoop.name).addClass("picked_string_"+selectedLoop.name.charAt(0))
+    $("."+selectedLoop.name).addClass("picked_string")
     render();
+}
+function pickLoopByName(name){
+  if (selectedLoop){
+    //restore color of prev. selected loop
+    unpickLoop(selectedLoop)
+  }
+  for (var i=0; i<rnaLoops.length; i++){
+    if (rnaLoops[i].name==name){
+      pickLoop(rnaLoops[i])
+    }
+  }
 }
 
 function unpickLoop(loop){
+    $(".dotbracket_element").removeClass("picked_string")
+    $(".dotbracket_element").removeClass("picked_string_m")
+    $(".dotbracket_element").removeClass("picked_string_s")
+    $(".dotbracket_element").removeClass("picked_string_h")
+    $(".dotbracket_element").removeClass("picked_string_i")
+    $(".dotbracket_element").removeClass("picked_string_f")
+    $(".dotbracket_element").removeClass("picked_string_t")
     unpickObject(loop);
     for (var i=0; i<virtualAtoms.length; i++){
         if (virtualAtoms[i].stemname==loop.name){

@@ -5,4 +5,11 @@
     <tr><td>Total length:</td><td>{{cg.total_length() | round(4) }}</td></tr>
     {% if numclashes %}<tr><td>Clashes:</td><td>{{numclashes}} Atoms clash.</td></tr>{%endif%}
     {% if clashbulges %}<tr><td>Stems clashing:</td><td>{{clashbulges}}</td></tr>{%endif%}
+    {% if bad_junctions %}<tr><td>Bad junction closing segments:</td><td>{{bad_junctions}}</td></tr>{%endif%}
 </table>
+
+<div>
+<pre>
+{{cg | markup_dotbracket | safe }}
+</pre>
+</div>

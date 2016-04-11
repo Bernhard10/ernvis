@@ -8,17 +8,28 @@
 	</head>
 	<body>
     <section id="canvasWrap">
-    <h1>3D structure</h1>
+    <h1>3D Structure</h1>
     <div id="canvasControls">
-      <button type="button" id="refreshWindow" onclick="refreshCanvas()">Refresh</button><br/>
+      <button type="button" id="refreshWindow" onclick="refreshCanvas()">Refresh</button>&nbsp;&nbsp;&nbsp;
       <input type="checkbox" id="showVirtualAtoms"/>Virtual Atoms<br/>
-    </div>
+    </div>    
+    </section>   
+    <section id="fornacWrap">
+    <h1>2D Structure</h1>    
+    <div id='rna_ss'> </div>
+      <input type="checkbox" id="allowFornacEdit"/>Freeze 2D structure<br/>
     </section>
     <section id="structureStats"></section>
+    <section id="energyInfo"></section>
     <section id="selectedLoop"></section>
-	</body>		
-  <script src="/static/js/three.min.js"></script>
-  <script src="/static/js/TrackballControls.js"></script>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
-	<script src="/static/js/RNAvis.js"></script>
+
+    <footer id="footer">(c) 2016, Bernhard Thiel &bull; 2D Structure: <a href="https://github.com/pkerpedjiev/fornac">FornaContainer</a> by P.Kerpedjiev &bull; Server-side RNA calculations using <a href="https://github.com/pkerpedjiev/forgi">forgi</a> and <a href="https://github.com/pkerpedjiev/ernwin">ernwin</a> by P.Kerpedjiev, B.Thiel and contributors &bull; Publications: <a href="http://dx.doi.org/10.1261/rna.047522.114">RNA</a>, <a href="http://dx.doi.org/10.1093/bioinformatics/btv372">Bioinformatics</a></footer>
+
+    <script src="/static/js/three.min.js"></script>
+    <script src="/static/js/TrackballControls.js"></script>
+	  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+	  <script src="/static/js/RNAvis.js"></script>    
+    <script type='text/javascript' src='/static/js/fornac.js'></script>
+    <link rel='stylesheet' type='text/css' href='styles/fornac.css' />
+  <body>
 </html>

@@ -4,10 +4,10 @@ from builtins import (ascii, bytes, chr, dict, filter, hex, input,
                       int, map, next, oct, open, pow, range, round,
                       str, super, zip)
 from . import app
+from . import caching
 
 from flask import jsonify, render_template, request, abort, redirect, url_for
 
-import forgi.threedee.model.stats as ftms
 import forgi.threedee.model.coarse_grain as ftmc
 import forgi.threedee.utilities.vector as ftuv
 import fess.builder.models as fbm
@@ -24,10 +24,7 @@ from pstats import Stats
 prof = Profile()
 prof.disable()
 
-#This takes some time, which is why it is only executed once at startup of the server.
-print(" * Loading default conformation stats")
-default_conf_stats=ftms.get_conformation_stats()
-
+smCache = caching.CgFileCache()
 
 # ========== FILTERS FOR JINJA2 =========
 @app.template_filter('looptype')
@@ -47,6 +44,32 @@ def looptype(loopname):
     return "five prime single stranded region"
   return "???"
 
+@app.template_filter('energy_name')
+def energy_name(shortname):
+  s=shortname
+  if s=="ROG":
+    return "Radius of Gyration Energy (ROG)"
+  elif s=="AME(0)":
+    return "A-Minor Energy (hairpin)"
+  elif s=="AME(1)":
+    return "A-Minor Energy (interior loop)"
+  elif s=="10SLD" or s.startswith("10SLD,"):
+    return "Hairpin-hairpin Interaction (SLD)" 
+  return s
+
+@app.template_filter('markup_dotbracket')
+def markup_dotbracket(cg):
+  db=cg.to_dotbracket_string()
+  c2l={}
+  for key, positions in cg.defines.items():
+      if len(positions)>1:
+          c2l[positions[0]]=(key, positions[1])
+      if len(positions)>3:
+          c2l[positions[2]]=(key, positions[3])
+  outdb=[]
+  for start in sorted(c2l):
+      outdb.append('<span class="{0} dotbracket_element" element_name="{0}">'.format(c2l[start][0])+db[start-1:c2l[start][1]]+'</span>')
+  return "".join(outdb)
 # ===========  ROOT  =======================
 @app.route('/')
 def index():
@@ -70,10 +93,13 @@ def upload_structure():
 def structure_main(filename):
   return render_template("structure.html")
 
+@app.route('/structures/<string:filename>/404')
+def show404(filename):
+  return render_template("show404.html")
+
 @app.route('/structures/<string:filename>/3D')
 def showStructure(filename):
-    cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+    sm=get_sm(filename)
     try:
         return getStructureJson(sm)
     except KeyError:
@@ -86,13 +112,13 @@ def showStructure(filename):
 def changeLoop(filename, loopname):
     posted=request.get_json(force=True)
     if posted["action"]=="change" and posted["method"]=="random":
-        cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-        sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+        sm=get_sm(filename)
         sm.load_sampled_elems()
-        if loopname not in cg.coords:
+        if loopname not in sm.bg.coords:
             abort(404)
         original_cg=copy.deepcopy(sm.bg)
-
+        new_filename=get_new_filename()
+        smCache.renameSM(filename, new_filename)
         change_elem(sm, loopname)
         cg=sm.bg
 
@@ -118,9 +144,8 @@ def changeLoop(filename, loopname):
 
 @app.route('/structures/<string:filename>/loop/<string:loopname>/stats.html')
 def loopInfo(filename, loopname):
-    cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-    #prof.enable()
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+    sm=get_sm(filename)
+    cg=sm.bg
     #prof.disable()
     #prof.dump_stats('mystats.stats')
     #stats = Stats('mystats.stats')
@@ -138,20 +163,42 @@ def loopInfo(filename, loopname):
 
 @app.route('/structures/<string:filename>/stats')
 def structureStats(filename):
-    cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+    sm=get_sm(filename)
+    cg=sm.bg
     clash_energy=fbe.StemVirtualResClashEnergy()
     clash_energy.eval_energy(sm)
     numclashes=sum(len(clash_energy.bad_atoms[x]) for x in clash_energy.bad_atoms)
-    return render_template("structureinfo.html", cg=cg, numclashes=numclashes, clashbulges=", ".join(sorted(set(clash_energy.bad_bulges), key=lambda x: int(x[1:]))))
+    junction_energy=fbe.RoughJunctionClosureEnergy()
+    j=junction_energy.eval_energy(sm)
+    print("J Energy is ",j)
+    return render_template("structureinfo.html", cg=cg, numclashes=numclashes, 
+                            clashbulges=", ".join(sorted(set(clash_energy.bad_bulges), key=lambda x: int(x[1:]))),
+                            bad_junctions=", ".join(sorted(set(junction_energy.bad_bulges), key=lambda x: int(x[1:]))))
+
+@app.route('/structures/<string:filename>/styles/fornac.css')
+def fornacstyle(filename):
+   return app.send_static_file('styles/fornac.css')
+
+@app.route('/structures/<string:filename>/energy')
+def structureEnergy(filename):
+    sm=get_sm(filename)
+    #posted=request.get_json(force=True)
+    #if "energy" in posted:
+    #    pass    
+    sld_energies=[]
+    for hloop in sm.bg.hloop_iterator():
+        sld_energies+= [fbe.ShortestLoopDistancePerLoop(hloop)]
+    combined_energy=fbe.CombinedEnergy([], [fbe.RadiusOfGyrationEnergy(), fbe.AMinorEnergy(loop_type = 'h'), fbe.AMinorEnergy(loop_type = 'i')]+[fbe.CombinedEnergy([], sld_energies)])
+
+    return render_template("energy.html", energy=combined_energy, sm=sm)
 # ======= VIEWS RETURNING JSON ===============
 
 
 
 @app.route('/structures/<string:filename>/virtualAtoms')
 def showvirtualAtoms(filename):
-    cg=ftmc.CoarseGrainRNA("user_files/"+filename)
-    sm=fbm.SpatialModel(cg, conf_stats=default_conf_stats)
+    sm=get_sm(filename)
+    cg=sm.bg
     clash_energy=fbe.StemVirtualResClashEnergy()
     clash_energy.eval_energy(sm)
     forJson={ "virtual_atoms":[]}
@@ -204,6 +251,8 @@ def getStructureJson(sm):
     if clash_energy.bad_bulges:
         forJson["bad_bulges"]=list(set(clash_energy.bad_bulges))
 
+    forJson["dotbracket"]=sm.bg.to_dotbracket_string()
+    forJson["sequence"]=sm.bg.seq
     return jsonify(forJson)
 
     
@@ -213,3 +262,8 @@ def get_new_filename():
         if not os.path.exists("user_files/"+filename):
             return filename
 
+def get_sm(filename):
+    try:
+        return smCache.loadSM(filename)
+    except IOError:
+        abort(404)

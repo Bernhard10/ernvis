@@ -4,6 +4,8 @@ body {
 section { 
   padding: 5px;
   margin-left:5px;
+  margin-right:15px;
+  float:left;
 }
 #canvasWrap{
   margin-left:5px;
@@ -12,12 +14,63 @@ section {
   float:left;
 }
 canvas {
-
   width: 500px;
   height: 500px;
 
 }
 
-#selectedLoop {
-  float:left;
+
+#rna_ss {
+  width:500px;
+  height:500px;
 }
+
+#fornacWrap{
+  margin-left:5px;
+  margin-right:15px;
+  border:solid; 
+}
+
+#structureStats {
+  max-width: 600px;
+}
+
+pre {   
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.picked_string {
+  font-weight: bolder;
+
+}
+.picked_string_h {
+  background-color: #ccccff;
+}
+.picked_string_m {
+  background-color: #ffcccc;
+}
+.picked_string_s {
+  background-color: #ccffcc;
+}
+.picked_string_i {
+  background-color: #fafa00;
+}
+.picked_string_f {
+  background-color: #cccccc;
+}
+.picked_string_t {
+  background-color: #cccccc;
+}
+#footer {
+	width:100%;
+	height:2em;
+	position:fixed;
+	bottom:0;
+	left:0;
+  color:gray;
+  font-size:small;
+  text-align:center;
+  background-color:white;
+}
+
