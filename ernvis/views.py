@@ -19,6 +19,10 @@ import subprocess
 
 import numpy as np
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
+
 from cProfile import Profile
 from pstats import Stats
 prof = Profile()
@@ -102,8 +106,9 @@ def showStructure(filename):
     sm=get_sm(filename)
     try:
         return getStructureJson(sm)
-    except KeyError:
-        #Starts a subprocess. TODO: In production this should be replaced by submitting the job to a gridengine.
+    except KeyError as e:
+        log.exception(e)
+        smCache.removeSM(filename)
         return jsonify({"status":"NOT READY", "message":"Please wait, while your structure is being built."})
 
 
@@ -204,7 +209,7 @@ def showvirtualAtoms(filename):
     forJson={ "virtual_atoms":[]}
     virtualAtoms = ftug.virtual_atoms(sm.bg, sidechain=True)
     for residuePos in virtualAtoms.keys():
-        stem=cg.get_loop_from_residue(residuePos)
+        stem=cg.get_node_from_residue_num(residuePos)
         if stem[0]!="s": continue #Only virtual res for stems!
         residue=virtualAtoms[residuePos]
         for aname in residue.keys():
@@ -242,8 +247,13 @@ def change_elem(sm, d):
     sm.traverse_and_build(start=d)
 
 def getStructureJson(sm):
+    
     clash_energy=fbe.StemVirtualResClashEnergy()
-    clash_energy.eval_energy(sm)
+    try:
+        clash_energy.eval_energy(sm)
+    except KeyError:
+        sm.bg.add_all_virtual_residues()
+        clash_energy.eval_energy(sm)
     forJson={ "loops":[], "bad_bulges":[], "status":"OK"}
     for element in sm.bg.coords:
         forJson["loops"].append(cylinderToThree(sm.bg.coords[element], element))

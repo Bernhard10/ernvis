@@ -1,0 +1,8 @@
+<h1>Energies</h1>
+
+<table>
+{% for e in energy.uncalibrated_energies %}
+    <tr><td>{{e.shortname() | energy_name}}:</td><td>{{e.eval_energy(sm) | round(4)}}</td></tr>
+{%endfor%}
+    <tr><td><b>Total:</b></td><td><b>{{energy.eval_energy(sm) | round(4)}}</b></td></tr>
+</table>
